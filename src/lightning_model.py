@@ -50,7 +50,22 @@ class LightningModel(pl.LightningModule):
         self._strict_loading = False
 
     def configure_model(self) -> None:
-        self.trainer.strategy.barrier()
+        print(">>>> CONFIGURE_MODEL CALLED (EDITED VERSION 2) <<<<")
+
+        # Check the internal _trainer attribute first!
+        if hasattr(self, '_trainer') and self._trainer is not None:
+            # Only if _trainer exists and is not None, can we safely access the self.trainer property
+            print(">>>> configure_model: Internal _trainer IS present. Accessing self.trainer property. <<<<")
+            actual_trainer = self.trainer # Now it's safer to access the property
+
+            if hasattr(actual_trainer, 'strategy') and callable(getattr(actual_trainer.strategy, 'barrier', None)):
+                print(">>>> configure_model: Calling actual_trainer.strategy.barrier() <<<<")
+                actual_trainer.strategy.barrier()
+            else:
+                print(">>>> configure_model: Trainer has no strategy.barrier or barrier is not callable <<<<")
+        else:
+            print(">>>> configure_model: Internal _trainer IS NONE or does not exist. Skipping barrier. <<<<")
+        print(">>>> CONFIGURE_MODEL FINISHED (EDITED VERSION) <<<<")
         # self.denoiser = self.model_loader.load(self.denoiser)
         copy_params(src_model=self.denoiser, dst_model=self.ema_denoiser)
 

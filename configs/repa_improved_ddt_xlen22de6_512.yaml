@@ -39,7 +39,7 @@ model:
   vae:
     class_path: src.models.vae.LatentVAE
     init_args:
-      precompute: true
+      precompute: false
       weight_path: stabilityai/sd-vae-ft-ema
   denoiser:
     class_path: src.models.denoiser.decoupled_improved_dit.DDT
