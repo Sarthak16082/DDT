@@ -120,21 +120,29 @@ class LatentVAE(BaseVAE):
     def decode(self, x: torch.Tensor) -> torch.Tensor: # Added type hints
         print(f"[LatentVAE.decode] Called. Input x shape: {x.shape}")
         assert self.model is not None, "VAE model not loaded!"
-        # Note: .sample at the end of decode is for if decode returns a distribution.
-        # For AutoencoderKL, decode usually returns the image tensor directly.
+        
+        # Decode the latents
         decoded_output = self.model.decode(x.div(self.scaling_factor)) # x here are latents
-        if hasattr(decoded_output, 'sample') and callable(decoded_output.sample):
-             # This is if self.model.decode returns a distribution (like AutoencoderKLOutput)
-            image_sample = decoded_output.sample 
-            print(f"[LatentVAE.decode] Shape of decoded image sample (from dist.sample): {image_sample.shape}")
-            return image_sample
+        
+        # Handle different output types from diffusers models
+        if hasattr(decoded_output, 'sample'):
+            # DecoderOutput object from diffusers has a 'sample' attribute
+            print(f"[LatentVAE.decode] Found DecoderOutput with sample attribute")
+            image_tensor = decoded_output.sample
+            print(f"[LatentVAE.decode] Shape of decoded image tensor from sample attribute: {image_tensor.shape}")
+            return image_tensor
         elif isinstance(decoded_output, torch.Tensor):
             # This is if self.model.decode directly returns the image tensor
             print(f"[LatentVAE.decode] Shape of decoded image tensor: {decoded_output.shape}")
             return decoded_output
         else:
             print(f"[LatentVAE.decode] ERROR: Unexpected output type from model.decode: {type(decoded_output)}")
-            return None # Or raise error
+            # Try to extract the sample in different ways
+            if hasattr(decoded_output, "images"):
+                return decoded_output.images
+            # If all else fails
+            return None
+
 def uint82fp(x):
     x = x.to(torch.float32)
     x = (x - 127.5) / 127.5
