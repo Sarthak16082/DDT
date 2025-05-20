@@ -126,6 +126,8 @@ class HeunSampler(BaseSampler):
             if self.step_fn == ode_step_fn:
                 logger.warning("current sampler is ODE sampler, but w_scheduler is enabled")
 
+
+
     def _impl_sampling(self, net, noise, condition, uncondition):
         """
         sampling process of Henu sampler
@@ -152,10 +154,16 @@ class HeunSampler(BaseSampler):
                 w = self.w_scheduler.w(t_cur)
             else:
                 w = 0.0
+            
+            # --- MODIFICATION START ---
             if i == 0 or self.exact_henu:
                 cfg_x = torch.cat([x, x], dim=0)
                 cfg_t_cur = t_cur.repeat(2)
-                out = net(cfg_x, cfg_t_cur, cfg_condition)
+                # Original: out = net(cfg_x, cfg_t_cur, cfg_condition)
+                network_output = net(cfg_x, cfg_t_cur, cfg_condition) # Get the tuple
+                out = network_output[0] # Use only the first element (the tensor)
+                # The second element (state) is ignored by this sampler.
+                
                 out = self.guidance_fn(out, self.guidance)
                 v = out
                 s = ((alpha_over_dalpha)*v - x)/(sigma**2 - (alpha_over_dalpha)*dsigma_mul_sigma)
@@ -167,7 +175,10 @@ class HeunSampler(BaseSampler):
             if i < self.num_steps -1:
                 cfg_x_hat = torch.cat([x_hat, x_hat], dim=0)
                 cfg_t_hat = t_hat.repeat(2)
-                out = net(cfg_x_hat, cfg_t_hat, cfg_condition)
+                # Original: out = net(cfg_x_hat, cfg_t_hat, cfg_condition)
+                network_output_hat = net(cfg_x_hat, cfg_t_hat, cfg_condition) # Get the tuple
+                out = network_output_hat[0] # Use only the first element
+                
                 out = self.guidance_fn(out, self.guidance)
                 v_hat = out
                 s_hat = ((alpha_over_dalpha_hat)* v_hat - x_hat) / (sigma_hat ** 2 - (alpha_over_dalpha_hat) * dsigma_mul_sigma_hat)
@@ -176,4 +187,5 @@ class HeunSampler(BaseSampler):
                 x = self.step_fn(x, v, dt, s=s, w=w)
             else:
                 x = self.last_step_fn(x, v, dt, s=s, w=w)
+            # --- MODIFICATION END ---
         return x
